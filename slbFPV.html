@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SLB Field Progress Viewer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #10b981;
+      color: white;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      font-weight: 500;
+      z-index: 100;
+      animation: fadein 0.3s, fadeout 0.3s 2.7s;
+    }
+
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeout {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(20px); }
+    }
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: #f8f9fc;
+      color: #333;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background-color: #1b1b1b;
+      color: white;
+      padding: 1rem 2rem;
+      flex-wrap: wrap;
+    }
+    header h1 {
+      font-size: 1.5rem;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-top: 0.5rem;
+    }
+    .controls input {
+      padding: 0.5rem;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      width: 400px;
+    }
+    .controls button {
+      padding: 0.5rem;
+      border-radius: 5px;
+      border: none;
+      background-color: #10b981;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .scopes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin: 1rem 2rem 0;
+    }
+    .scope-btn {
+      padding: 0.4rem 0.75rem;
+      background-color: #e5e7eb;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      border: none;
+    }
+    main {
+      padding: 2rem;
+    }
+    .stats-bar {
+      display: flex;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat {
+      background: white;
+      border-radius: 10px;
+      padding: 1rem 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      flex: 1;
+      text-align: center;
+    }
+    .stat.employees {
+      background: white;
+      border-radius: 10px;
+      padding: 1rem 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      flex: 1;
+      text-align: center;
+    }
+    .stat h2 {
+      margin: 0;
+      font-size: 1.25rem;
+    }
+    .stat p {
+      margin: 0.25rem 0 0;
+      color: #6b7280;
+    }
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+    .project-card {
+      background: white;
+      border-radius: 10px;
+      padding: 1rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    
+    .project-card.completed {
+      background-color: #e5e7eb;
+      color: #6b7280;
+    }
+    .project-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .tag-container {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.25rem;
+    }
+    .project-title {
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+    .project-status {
+      background-color: #d1fae5;
+      padding: 0.25rem 0.5rem;
+      border-radius: 5px;
+      font-size: 0.8rem;
+      color: #065f46;
+    }
+    .project-status.completed::before {
+      content: '✅ ';
+    }
+    .meta-completed::before {
+      content: '✅ ';
+    }
+    .project-type {
+      background-color: #e0f2fe;
+      padding: 0.25rem 0.5rem;
+      border-radius: 5px;
+      font-size: 0.8rem;
+      color: #0369a1;
+    }
+    .action-dropdown {
+      position: relative;
+      margin-top: 1rem;
+    }
+
+    .action-button {
+      background-color: #3b82f6;
+      color: white;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 5px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .sort-btn {
+      padding: 0.4rem 0.75rem;
+      background-color: #e5e7eb;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      border: none;
+    }
+
+    .sort-btn.active,
+    .scope-btn.active {
+      background-color: #3b82f6;
+      color: white;
+      font-weight: 600;
+    }
+
+    .action-menu {
+      position: absolute;
+      top: 110%;
+      left: 0;
+      background: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-radius: 5px;
+      display: none;
+      min-width: 200px;
+      z-index: 10;
+    }
+
+    .action-menu.show {
+      display: block;
+    }
+
+    .action-menu button {
+      width: 100%;
+      text-align: left;
+      padding: 0.5rem 1rem;
+      border: none;
+      background: none;
+      font-size: 0.85rem;
+      cursor: pointer;
+      color: #1f2937;
+    }
+
+    .action-menu button:hover {
+      background-color: #f3f4f6;
+    }
+    .meta {
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+      color: #4b5563;
+    }
+    .supervisors {
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+      color: #374151;
+    }
+    .project-tags {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+      margin-bottom: 0.5rem;
+    }
+    .project-tags .project-type {
+      background-color: #e0f2fe;
+      padding: 0.25rem 0.5rem;
+      border-radius: 5px;
+      font-size: 0.8rem;
+      color: #0369a1;
+    }
+    .meta-label {
+      font-weight: 600;
+      color: #1f2937;
+    }
+    .meta-value {
+      font-weight: 400;
+      color: #4b5563;
+    }
+  </style>
+  <script>
+    function filterByStatus(status) {
+      const cards = document.querySelectorAll('.project-card');
+      cards.forEach(card => {
+        const projectStatus = card.querySelector('.project-status')?.textContent.trim();
+        card.style.display = (status === 'All' || projectStatus === status) ? '' : 'none';
+      });
+
+      document.querySelectorAll('.scope-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.scope-btn').forEach(b => {
+        if (b.textContent.trim() === status) b.classList.add('active');
+      });
+    }
+  </script>
+</head>
+<body>
+  <header>
+    <h1>
+      <img src="https://upload.wikimedia.org/wikipedia/commons/d/d6/SLB_Logo_2022.svg"
+           alt="SLB Logo"
+           style="height: 60px; vertical-align: middle; margin-right: 0.5rem;" />
+      Field Progress Viewer
+    </h1>
+    <div class="controls">
+      <input type="text" placeholder="Search projects..." oninput="searchProjects(this.value)" />
+      <button onclick="openAddProject()">+ Add Project</button>
+      <button>Settings</button>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </header>
+
+  <div class="scopes">
+    <button class="scope-btn active" onclick="filterByStatus('All')">All</button>
+    <button class="scope-btn" onclick="filterByActive()">Active</button>
+    <button class="scope-btn" onclick="filterByStatus('Mobilisation')">Mobilisation</button>
+    <button class="scope-btn" onclick="filterByStatus('Spotting Equipment')">Spotting Equipment</button>
+    <button class="scope-btn" onclick="filterByStatus('Rig UP')">Rig UP</button>
+    <button class="scope-btn" onclick="filterByStatus('Pressure Test')">Pressure Test</button>
+    <button class="scope-btn" onclick="filterByStatus('Standby')">Standby</button>
+    <button class="scope-btn" onclick="filterByStatus('Operation')">Operation</button>
+    <button class="scope-btn" onclick="filterByStatus('Rig Down')">Rig Down</button>
+    <button class="scope-btn" onclick="filterByStatus('Backloading')">Backloading</button>
+    <button class="scope-btn" onclick="filterByStatus('Completed')">Completed</button>
+
+    <div style="margin-right:auto; display:flex; gap:0.5rem;">
+  <button class="sort-btn" onclick="sortByDate('asc', this)">Date ↑</button>
+  <button class="sort-btn" onclick="sortByDate('desc', this)">Date ↓</button>
+</div>
+  </div>
+
+
+  <main>
+    <div style="margin-bottom: 1rem;">
+      <button onclick="openGlobalPost()" style="background-color: #2563eb; color: white; font-weight: 600; padding: 0.6rem 1rem; border: none; border-radius: 5px; cursor: pointer;">📢 Post to All</button>
+    </div>
+    <div class="stats-bar">
+      <div class="stat total">
+        <h2>0</h2>
+        <p>Total Projects</p>
+      </div>
+      <div class="stat operation">
+        <h2>0</h2>
+        <p>Operation</p>
+      </div>
+      <div class="stat standby">
+        <h2>0</h2>
+        <p>Standby</p>
+      </div>
+      <div class="stat completed">
+        <h2>0</h2>
+        <p>Completed</p>
+      </div>
+      <div class="stat employees">
+        <h2>0</h2>
+        <p>Active Employees</p>
+      </div>
+    </div>
+
+    <div class="projects-grid">
+      <div class="project-card">
+        <div class="project-header">
+          <span class="project-title">Project A</span>
+          <div class="tag-container">
+            <span class="project-status">Rig Up</span>
+            <span class="project-type">Onshore</span>
+          </div>
+        </div>
+        <div class="meta">
+          🕓 <span class="meta-label">Created:</span> <span class="meta-value">2025-06-01</span><br/>
+          📍 <span class="meta-label">Location:</span> <span class="meta-value">Dammam</span><br/>
+          👷 <span class="meta-label">Supervisor:</span> <span class="meta-value">Ali R. / Omar H.</span><br/>
+          👷‍♂️ <span class="meta-label">Employees:</span> <span class="meta-value employees-count">12</span><br/>
+        </div>
+        <div class="action-dropdown">
+          <button class="action-button" onclick="toggleActions(this)">Project Actions</button>
+          <div class="action-menu">
+            <button onclick="requestUpdate(this.closest('.project-card').querySelector('.project-title').textContent)">Request Update</button>
+            <button onclick="sendMessage(this.closest('.project-card').querySelector('.project-title').textContent)">Send Message</button>
+            <button onclick="sendFile(this.closest('.project-card').querySelector('.project-title').textContent)">Send File</button>
+            <button onclick="manageMembers(this.closest('.project-card').querySelector('.project-title').textContent)">Manage Members</button>
+            <button onclick="markCompleted(this.closest('.project-card'))">Mark as Completed</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="project-card">
+        <div class="project-header">
+          <span class="project-title">ADM-337</span>
+          <div class="tag-container">
+            <span class="project-status">Mobilisation</span>
+            <span class="project-type">Onshore</span>
+          </div>
+        </div>
+        <div class="meta">
+          🕓 <span class="meta-label">Created:</span> <span class="meta-value">2025-06-25</span><br/>
+          📍 <span class="meta-label">Location:</span> <span class="meta-value">Dhahran</span><br/>
+          👷 <span class="meta-label">Supervisor:</span> <span class="meta-value">Amal S. / Yasser B.</span><br/>
+          👷‍♂️ <span class="meta-label">Employees:</span> <span class="meta-value employees-count">10</span><br/>
+        </div>
+        <div class="action-dropdown">
+          <button class="action-button" onclick="toggleActions(this)">Project Actions</button>
+          <div class="action-menu">
+            <button onclick="requestUpdate(this.closest('.project-card').querySelector('.project-title').textContent)">Request Update</button>
+            <button onclick="sendMessage(this.closest('.project-card').querySelector('.project-title').textContent)">Send Message</button>
+            <button onclick="sendFile(this.closest('.project-card').querySelector('.project-title').textContent)">Send File</button>
+            <button onclick="manageMembers(this.closest('.project-card').querySelector('.project-title').textContent)">Manage Members</button>
+            <button onclick="markCompleted(this.closest('.project-card'))">Mark as Completed</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="project-card">
+        <div class="project-header">
+          <span class="project-title">ARO-140</span>
+          <div class="tag-container">
+            <span class="project-status">Rig Down</span>
+            <span class="project-type">Offshore</span>
+          </div>
+        </div>
+        <div class="meta">
+          🕓 <span class="meta-label">Created:</span> <span class="meta-value">2025-06-18</span><br/>
+          📍 <span class="meta-label">Location:</span> <span class="meta-value">Al Khobar</span><br/>
+          👷 <span class="meta-label">Supervisor:</span> <span class="meta-value">Rami D. / Khaled H.</span><br/>
+          👷‍♂️ <span class="meta-label">Employees:</span> <span class="meta-value employees-count">8</span><br/>
+        </div>
+        <div class="action-dropdown">
+          <button class="action-button" onclick="toggleActions(this)">Project Actions</button>
+          <div class="action-menu">
+            <button onclick="requestUpdate(this.closest('.project-card').querySelector('.project-title').textContent)">Request Update</button>
+            <button onclick="sendMessage(this.closest('.project-card').querySelector('.project-title').textContent)">Send Message</button>
+            <button onclick="sendFile(this.closest('.project-card').querySelector('.project-title').textContent)">Send File</button>
+            <button onclick="manageMembers(this.closest('.project-card').querySelector('.project-title').textContent)">Manage Members</button>
+            <button onclick="markCompleted(this.closest('.project-card'))">Mark as Completed</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="project-card">
+        <div class="project-header">
+          <span class="project-title">SANO-76</span>
+          <div class="tag-container">
+            <span class="project-status">Pressure Test</span>
+            <span class="project-type">Onshore</span>
+          </div>
+        </div>
+        <div class="meta">
+          🕓 <span class="meta-label">Created:</span> <span class="meta-value">2025-06-22</span><br/>
+          📍 <span class="meta-label">Location:</span> <span class="meta-value">Hofuf</span><br/>
+          👷 <span class="meta-label">Supervisor:</span> <span class="meta-value">Layla N. / Sami K.</span><br/>
+          👷‍♂️ <span class="meta-label">Employees:</span> <span class="meta-value employees-count">7</span><br/>
+        </div>
+        <div class="action-dropdown">
+          <button class="action-button" onclick="toggleActions(this)">Project Actions</button>
+          <div class="action-menu">
+            <button onclick="requestUpdate(this.closest('.project-card').querySelector('.project-title').textContent)">Request Update</button>
+            <button onclick="sendMessage(this.closest('.project-card').querySelector('.project-title').textContent)">Send Message</button>
+            <button onclick="sendFile(this.closest('.project-card').querySelector('.project-title').textContent)">Send File</button>
+            <button onclick="manageMembers(this.closest('.project-card').querySelector('.project-title').textContent)">Manage Members</button>
+            <button onclick="markCompleted(this.closest('.project-card'))">Mark as Completed</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="project-card">
+        <div class="project-header">
+          <span class="project-title">Project B</span>
+          <div class="tag-container">
+            <span class="project-status">Operation</span>
+            <span class="project-type">Offshore</span>
+          </div>
+        </div>
+        <div class="meta">
+          🕓 <span class="meta-label">Created:</span> <span class="meta-value">2025-05-28</span><br/>
+          📍 <span class="meta-label">Location:</span> <span class="meta-value">Ras Tanura</span><br/>
+          👷 <span class="meta-label">Supervisor:</span> <span class="meta-value">Sarah K. / Faisal Z.</span><br/>
+          👷‍♂️ <span class="meta-label">Employees:</span> <span class="meta-value employees-count">15</span><br/>
+        </div>
+        <div class="action-dropdown">
+          <button class="action-button" onclick="toggleActions(this)">Project Actions</button>
+          <div class="action-menu">
+            <button onclick="requestUpdate(this.closest('.project-card').querySelector('.project-title').textContent)">Request Update</button>
+            <button onclick="sendMessage(this.closest('.project-card').querySelector('.project-title').textContent)">Send Message</button>
+            <button onclick="sendFile(this.closest('.project-card').querySelector('.project-title').textContent)">Send File</button>
+            <button onclick="manageMembers(this.closest('.project-card').querySelector('.project-title').textContent)">Manage Members</button>
+            <button onclick="markCompleted(this.closest('.project-card'))">Mark as Completed</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="project-card completed">
+        <div class="project-header">
+          <span class="project-title">Project C</span>
+          <div class="tag-container">
+            <span class="project-status completed">Completed</span>
+            <span class="project-type">Onshore</span>
+          </div>
+        </div>
+        <div class="meta">
+          🕓 <span class="meta-label">Created:</span> <span class="meta-value">2025-04-10</span><br/>
+          📍 <span class="meta-label">Location:</span> <span class="meta-value">Abqaiq</span><br/>
+          <span class="meta-label meta-completed">Completed:</span> <span class="meta-value">2025-06-15</span><br/>
+          👷 <span class="meta-label">Supervisor:</span> <span class="meta-value">Noura M. / Majed T.</span><br/>
+          👷‍♂️ <span class="meta-label">Employees:</span> <span class="meta-value employees-count">0</span><br/>
+        </div>
+        <div class="action-dropdown">
+          <button class="action-button" onclick="toggleActions(this)">Project Actions</button>
+          <div class="action-menu">
+            <button onclick="requestUpdate(this.closest('.project-card').querySelector('.project-title').textContent)">Request Update</button>
+            <button onclick="sendMessage(this.closest('.project-card').querySelector('.project-title').textContent)">Send Message</button>
+            <button onclick="sendFile(this.closest('.project-card').querySelector('.project-title').textContent)">Send File</button>
+            <button onclick="manageMembers(this.closest('.project-card').querySelector('.project-title').textContent)">Manage Members</button>
+            <button onclick="markCompleted(this.closest('.project-card'))">Mark as Completed</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="project-card">
+        <div class="project-header">
+          <span class="project-title">Project D</span>
+          <div class="tag-container">
+            <span class="project-status">Standby</span>
+            <span class="project-type">Offshore</span>
+          </div>
+        </div>
+        <div class="meta">
+          🕓 <span class="meta-label">Created:</span> <span class="meta-value">2025-06-20</span><br/>
+          📍 <span class="meta-label">Location:</span> <span class="meta-value">Jubail</span><br/>
+          👷 <span class="meta-label">Supervisor:</span> <span class="meta-value">Tamer Q. / Ziad B.</span><br/>
+          👷‍♂️ <span class="meta-label">Employees:</span> <span class="meta-value employees-count">6</span><br/>
+        </div>
+        <div class="action-dropdown">
+          <button class="action-button" onclick="toggleActions(this)">Project Actions</button>
+          <div class="action-menu">
+            <button onclick="requestUpdate(this.closest('.project-card').querySelector('.project-title').textContent)">Request Update</button>
+            <button onclick="sendMessage(this.closest('.project-card').querySelector('.project-title').textContent)">Send Message</button>
+            <button onclick="sendFile(this.closest('.project-card').querySelector('.project-title').textContent)">Send File</button>
+            <button onclick="manageMembers(this.closest('.project-card').querySelector('.project-title').textContent)">Manage Members</button>
+            <button onclick="markCompleted(this.closest('.project-card'))">Mark as Completed</button>
+          </div>
+        </div>
+      </div>
+      <div class="project-card">
+        <div class="project-header">
+          <span class="project-title">ADM-339</span>
+          <div class="tag-container">
+            <span class="project-status">Spotting Equipment</span>
+            <span class="project-type">Offshore</span>
+          </div>
+        </div>
+        <div class="meta">
+          🕓 <span class="meta-label">Created:</span> <span class="meta-value">2025-06-26</span><br/>
+          📍 <span class="meta-label">Location:</span> <span class="meta-value">Tanajib</span><br/>
+          👷 <span class="meta-label">Supervisor:</span> <span class="meta-value">Hassan M. / Waleed S.</span><br/>
+          👷‍♂️ <span class="meta-label">Employees:</span> <span class="meta-value employees-count">9</span><br/>
+        </div>
+        <div class="action-dropdown">
+          <button class="action-button" onclick="toggleActions(this)">Project Actions</button>
+          <div class="action-menu">
+            <button onclick="requestUpdate(this.closest('.project-card').querySelector('.project-title').textContent)">Request Update</button>
+            <button onclick="sendMessage(this.closest('.project-card').querySelector('.project-title').textContent)">Send Message</button>
+            <button onclick="sendFile(this.closest('.project-card').querySelector('.project-title').textContent)">Send File</button>
+            <button onclick="manageMembers(this.closest('.project-card').querySelector('.project-title').textContent)">Manage Members</button>
+            <button onclick="markCompleted(this.closest('.project-card'))">Mark as Completed</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="project-card">
+        <div class="project-header">
+          <span class="project-title">ARO-141</span>
+          <div class="tag-container">
+            <span class="project-status">Backloading</span>
+            <span class="project-type">Onshore</span>
+          </div>
+        </div>
+        <div class="meta">
+          🕓 <span class="meta-label">Created:</span> <span class="meta-value">2025-06-24</span><br/>
+          📍 <span class="meta-label">Location:</span> <span class="meta-value">Udhailiyah</span><br/>
+          👷 <span class="meta-label">Supervisor:</span> <span class="meta-value">Mona F. / Tariq Y.</span><br/>
+          👷‍♂️ <span class="meta-label">Employees:</span> <span class="meta-value employees-count">11</span><br/>
+        </div>
+        <div class="action-dropdown">
+          <button class="action-button" onclick="toggleActions(this)">Project Actions</button>
+          <div class="action-menu">
+            <button onclick="requestUpdate(this.closest('.project-card').querySelector('.project-title').textContent)">Request Update</button>
+            <button onclick="sendMessage(this.closest('.project-card').querySelector('.project-title').textContent)">Send Message</button>
+            <button onclick="sendFile(this.closest('.project-card').querySelector('.project-title').textContent)">Send File</button>
+            <button onclick="manageMembers(this.closest('.project-card').querySelector('.project-title').textContent)">Manage Members</button>
+            <button onclick="markCompleted(this.closest('.project-card'))">Mark as Completed</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <div id="addProjectModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:30; justify-content:center; align-items:center;">
+    <!-- Step 1: Project Details -->
+    <div id="addProjectStep1" style="background:white; padding:2rem 2rem 2rem; border-radius:10px; max-width:480px; width:100%; box-shadow:0 10px 25px rgba(0,0,0,0.1);">
+      <h2 style="margin-top:0; font-size:1.5rem; color:#1f2937; text-align:center;">Create New Project</h2>
+      <div style="display:flex; flex-direction:column; gap:1rem; margin-top:1rem;">
+        <label style="font-weight:600;">Project Name</label>
+        <input type="text" id="newProjectName" style="width:90%; padding:0.75rem; border:1px solid #ccc; border-radius:5px;"/>
+        <label style="font-weight:600;">Location</label>
+        <input type="text" id="newProjectLocation" style="width:90%; padding:0.75rem; border:1px solid #ccc; border-radius:5px;"/>
+        <label style="font-weight:600;">Day Supervisor</label>
+        <input type="text" id="newProjectSupervisorDay" style="width:90%; padding:0.75rem; border:1px solid #ccc; border-radius:5px;"/>
+        <label style="font-weight:600;">Night Supervisor</label>
+        <input type="text" id="newProjectSupervisorNight" style="width:90%; padding:0.75rem; border:1px solid #ccc; border-radius:5px;"/>
+        <label style="font-weight:600;">Number of Employees</label>
+        <input type="number" id="newProjectEmployees" style="width:90%; padding:0.75rem; border:1px solid #ccc; border-radius:5px;"/>
+      </div>
+      <button onclick="saveProjectDetails()" style="margin-top:1.5rem; background:#2563eb; color:white; padding:0.75rem 1.5rem; border:none; border-radius:5px; font-weight:600; width:95%;">Save & Continue</button>
+    </div>
+    <!-- Step 2: Link Telegram Group -->
+    <div id="addProjectStep2" style="display:none; background:white; padding:2rem 2rem 1.5rem; border-radius:10px; max-width:480px; width:100%; box-shadow:0 10px 25px rgba(0,0,0,0.1); text-align:center;">
+      <h2 style="margin-top:0; font-size:1.5rem; color:#1f2937;">Link Telegram Group</h2>
+      <p style="color:#4b5563; margin-bottom:1rem;">Create a new Telegram group for this project, add <b>@SLBbot</b> as an admin, then send this code to link the project.</p>
+      <div style="background:#f9fafb; padding:1rem 2rem; border-radius:8px; font-size:1.5rem; font-weight:700; letter-spacing:2px; display:inline-block;" id="projectLinkCode">123456</div>
+      <br/>
+      <button onclick="closeAddProject()" style="margin-top:1.5rem; background:#10b981; color:white; padding:0.75rem 1.5rem; border:none; border-radius:5px; font-weight:600;">Done</button>
+    </div>
+  </div>
+</body>
+<div id="postModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:20; justify-content:center; align-items:center;">
+  <div style="background:white; padding:2rem; border-radius:10px; max-width:500px; width:100%;">
+    <h2>Post to All Active Projects</h2>
+    <label>Title</label><br/>
+    <input type="text" style="width:100%; padding:0.5rem; margin-bottom:1rem;"/><br/>
+    <label>File or Picture</label><br/>
+    <input type="file" style="margin-bottom:1rem;"/><br/>
+    <label>Description</label><br/>
+    <button style="margin-bottom:1rem; margin-top:1rem; background:#10b981; color:white; padding:0.4rem 0.75rem; border:none; border-radius:5px;">Get Short Description from File by AI</button><br/>
+    <textarea style="width:100%; height:100px; padding:0.5rem; margin-bottom:1rem;"></textarea><br/>
+    <button onclick="closeGlobalPost()" style="background:#3b82f6; color:white; padding:0.5rem 1rem; border:none; border-radius:5px; font-weight:600;">Send to All Active Projects</button>
+    <button onclick="closeGlobalPost()" style="margin-left:1rem; background:#d1d5db; padding:0.5rem 1rem; border:none; border-radius:5px;">Cancel</button>
+  </div>
+</div>
+<script>
+  function toggleActions(button) {
+    const menu = button.nextElementSibling;
+    document.querySelectorAll('.action-menu').forEach(m => {
+      if (m !== menu) m.classList.remove('show');
+    });
+    menu.classList.toggle('show');
+  }
+
+  window.addEventListener('click', function(e) {
+    if (!e.target.closest('.action-dropdown')) {
+      document.querySelectorAll('.action-menu').forEach(m => m.classList.remove('show'));
+    }
+  });
+
+  function openGlobalPost() {
+    document.getElementById('postModal').style.display = 'flex';
+  }
+
+  function closeGlobalPost() {
+    document.getElementById('postModal').style.display = 'none';
+  }
+
+  // Toast helper
+  function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.remove();
+    }, 3000);
+  }
+
+  // Action button handlers for project cards
+  function requestUpdate(projectTitle) {
+    showToast("Update request sent for: " + projectTitle);
+  }
+
+  function sendMessage(projectTitle) {
+    const message = prompt("Send message to project: " + projectTitle, "Type your message here...");
+    if (message) {
+      showToast("Message sent to " + projectTitle);
+    }
+  }
+
+  function sendFile(projectTitle) {
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.onchange = () => {
+      showToast("File selected for " + projectTitle + ": " + fileInput.files[0].name);
+    };
+    fileInput.click();
+  }
+
+  function manageMembers(projectTitle) {
+    showToast("Opening member management for: " + projectTitle);
+  }
+
+  function markCompleted(projectCard) {
+    projectCard.classList.add('completed');
+    const statusSpan = projectCard.querySelector('.project-status');
+    statusSpan.textContent = 'Completed';
+    statusSpan.classList.add('completed');
+    showToast("Project marked as completed.");
+    updateStats();
+  }
+</script>
+<script>
+  function updateStats() {
+    const total = document.querySelectorAll('.project-card').length;
+    const operation = document.querySelectorAll('.project-card .project-status').length
+      ? Array.from(document.querySelectorAll('.project-card')).filter(card => card.querySelector('.project-status').textContent.trim() === 'Operation').length : 0;
+    const standby = Array.from(document.querySelectorAll('.project-card')).filter(card => card.querySelector('.project-status').textContent.trim() === 'Standby').length;
+    const completed = Array.from(document.querySelectorAll('.project-card')).filter(card => card.querySelector('.project-status').textContent.trim() === 'Completed').length;
+
+    // Count employees in all non-completed projects
+    let totalEmployees = 0;
+    document.querySelectorAll('.project-card').forEach(card => {
+      const status = card.querySelector('.project-status')?.textContent.trim();
+      if (status !== 'Completed') {
+        const emp = card.querySelector('.employees-count')?.textContent.trim();
+        totalEmployees += emp ? parseInt(emp) : 0;
+      }
+    });
+
+    document.querySelector('.stat.total h2').textContent = total;
+    document.querySelector('.stat.operation h2').textContent = operation;
+    document.querySelector('.stat.standby h2').textContent = standby;
+    document.querySelector('.stat.completed h2').textContent = completed;
+    document.querySelector('.stat.employees h2').textContent = totalEmployees;
+  }
+
+  function filterByActive() {
+    const cards = document.querySelectorAll('.project-card');
+    cards.forEach(card => {
+      const status = card.querySelector('.project-status')?.textContent.trim();
+      card.style.display = status === 'Completed' ? 'none' : '';
+    });
+
+    document.querySelectorAll('.scope-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.scope-btn').forEach(b => {
+      if (b.textContent.trim() === 'Active') b.classList.add('active');
+    });
+  }
+
+  function logout() {
+    showToast("You have been signed out (simulation).");
+  }
+
+  function openAddProject() {
+    document.getElementById('addProjectModal').style.display = 'flex';
+    document.getElementById('addProjectStep1').style.display = 'block';
+    document.getElementById('addProjectStep2').style.display = 'none';
+  }
+
+  function closeAddProject() {
+    document.getElementById('addProjectModal').style.display = 'none';
+  }
+
+  function sortByDate(order, el) {
+  const grid = document.querySelector('.projects-grid');
+  const cards = Array.from(grid.children);
+  cards.sort((a, b) => {
+    const dateA = new Date(a.querySelector('.meta-value')?.textContent.trim());
+    const dateB = new Date(b.querySelector('.meta-value')?.textContent.trim());
+    return order === 'asc' ? dateA - dateB : dateB - dateA;
+  });
+  cards.forEach(card => grid.appendChild(card));
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+
+}
+
+
+</script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.scope-btn').forEach(btn => {
+      if (btn.textContent.trim() === 'All') {
+        btn.classList.add('active');
+      }
+    });
+    updateStats();
+  });
+</script>
+</html>
+
+  
+  <script>
+
+    function saveProjectDetails() {
+    // Simulate generating a digital code
+    const code = Math.floor(100000 + Math.random() * 900000);
+    document.getElementById('projectLinkCode').textContent = code;
+
+    // Hide step 1, show step 2
+    document.getElementById('addProjectStep1').style.display = 'none';
+    document.getElementById('addProjectStep2').style.display = 'block';
+  }
+  
+    function searchProjects(value) {
+      const search = value.toLowerCase();
+      const cards = document.querySelectorAll('.project-card');
+      cards.forEach(card => {
+        const title = card.querySelector('.project-title')?.textContent.toLowerCase() || "";
+        // Find the location: look for the meta section, then the 📍 Location label, then the next .meta-value
+        let location = "";
+        const meta = card.querySelector('.meta');
+        if (meta) {
+          // Try to find the 📍 Location label and get the next .meta-value
+          // We'll loop through child nodes to find the right .meta-label
+          const children = Array.from(meta.childNodes);
+          for (let i = 0; i < children.length; i++) {
+            if (
+              children[i].nodeType === 1 &&
+              children[i].classList &&
+              children[i].classList.contains('meta-label') &&
+              children[i].textContent.trim().includes('Location:')
+            ) {
+              // The next sibling with class meta-value is the location
+              for (let j = i + 1; j < children.length; j++) {
+                if (
+                  children[j].nodeType === 1 &&
+                  children[j].classList &&
+                  children[j].classList.contains('meta-value')
+                ) {
+                  location = children[j].textContent.toLowerCase();
+                  break;
+                }
+              }
+              break;
+            }
+          }
+        }
+        if (title.includes(search) || location.includes(search)) {
+          card.style.display = '';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+  </script>
+</script>
+<script>
+  
